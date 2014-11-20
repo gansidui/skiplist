@@ -62,9 +62,20 @@ func (sl *SkipList) Insert(v Interface) *Element {
 			sl.rank[i] = sl.rank[i+1]
 		}
 		for x.level[i].forward != nil && x.level[i].forward.Value.Less(v) {
-			x = x.level[i].forward
 			sl.rank[i] += x.level[i].span
+			x = x.level[i].forward
 		}
+
+		// for x.level[i].forward != nil && (x.level[i].forward.Value.Less(v) ||
+		// 	(!x.level[i].forward.Value.Less(v) && !v.Less(x.level[i].forward.Value))) {
+
+		// 	sl.rank[i] += x.level[i].span
+
+		// 	if x.level[i].forward.Value.Less(v) {
+		// 		x = x.level[i].forward
+		// 	}
+		// }
+
 		sl.update[i] = x
 	}
 
@@ -84,7 +95,7 @@ func (sl *SkipList) Insert(v Interface) *Element {
 		sl.update[i].level[i].forward = x
 
 		// update span covered by update[i] as x is inserted here
-		x.level[i].span = sl.update[i].level[i].span - (sl.rank[0] + sl.rank[i])
+		x.level[i].span = sl.update[i].level[i].span - sl.rank[0] + sl.rank[i]
 		sl.update[i].level[i].span = sl.rank[0] - sl.rank[i] + 1
 	}
 
@@ -143,7 +154,7 @@ func (sl *SkipList) Remove(e *Element) interface{} {
 	return nil
 }
 
-// Delete deletes the first element e that e.Value == v, and return e.Value or nil.
+// Delete deletes the first element e that e.Value == v, and returns e.Value or nil.
 func (sl *SkipList) Delete(v Interface) interface{} {
 	x := sl.find(v)
 	if x != nil && !x.Value.Less(v) && !v.Less(x.Value) {
@@ -154,7 +165,7 @@ func (sl *SkipList) Delete(v Interface) interface{} {
 	return nil
 }
 
-// Find finds the first element e that e.Value == v, and return e or nil.
+// Find finds the first element e that e.Value == v, and returns e or nil.
 func (sl *SkipList) Find(v Interface) *Element {
 	x := sl.find(v)
 	if x != nil && !x.Value.Less(v) && !v.Less(x.Value) {
@@ -164,7 +175,7 @@ func (sl *SkipList) Find(v Interface) *Element {
 	return nil
 }
 
-// find finds the first element e that e.Value >= v, and return e or nil.
+// find finds the first element e that e.Value >= v, and returns e or nil.
 func (sl *SkipList) find(v Interface) *Element {
 	x := sl.header
 	for i := sl.level - 1; i >= 0; i-- {
@@ -175,4 +186,42 @@ func (sl *SkipList) find(v Interface) *Element {
 	}
 
 	return x.level[0].forward
+}
+
+// GetRank finds the rank for the first element e that e.Value == v,
+// Returns 0 when the element cannot be found, rank otherwise.
+// Note that the rank is 1-based due to the span of sl.header to the first element.
+func (sl *SkipList) GetRank(v Interface) int {
+	x := sl.header
+	rank := 0
+	for i := sl.level - 1; i >= 0; i-- {
+		for x.level[i].forward != nil && x.level[i].forward.Value.Less(v) {
+			rank += x.level[i].span
+			x = x.level[i].forward
+		}
+		if x.level[i].forward != nil && !x.level[i].forward.Value.Less(v) && !v.Less(x.level[i].forward.Value) {
+			rank += x.level[i].span
+			return rank
+		}
+	}
+
+	return 0
+}
+
+// GetElementByRank finds an element by ites rank. The rank argument needs bo be 1-based.
+// Note that is the first element e that GetRank(e.Value) == rank, and returns e or nil.
+func (sl *SkipList) GetElementByRank(rank int) *Element {
+	x := sl.header
+	traversed := 0
+	for i := sl.level - 1; i >= 0; i-- {
+		for x.level[i].forward != nil && traversed+x.level[i].span <= rank {
+			traversed += x.level[i].span
+			x = x.level[i].forward
+		}
+		if traversed == rank {
+			return x
+		}
+	}
+
+	return nil
 }

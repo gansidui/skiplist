@@ -132,7 +132,8 @@ func TestInt(t *testing.T) {
 	}
 
 	sl2 := sl.Init()
-	if sl2.Len() != 0 || sl.Len() != 0 || sl2.Front() != nil || sl2.Back() != nil || sl.Front() != nil || sl.Back() != nil {
+	if sl.Len() != 0 || sl.Front() != nil || sl.Back() != nil ||
+		sl2.Len() != 0 || sl2.Front() != nil || sl2.Back() != nil {
 		t.Fatal()
 	}
 
@@ -140,6 +141,56 @@ func TestInt(t *testing.T) {
 	// 	sl.Insert(Int(rand.Intn(200)))
 	// }
 	// output(sl)
+}
+
+func TestRank(t *testing.T) {
+	sl := New()
+	// 1 2 2 2 3 3 4 5 6 6 7 8
+	testData := []Int{Int(5), Int(2), Int(3), Int(1), Int(4), Int(2), Int(3),
+		Int(6), Int(2), Int(7), Int(8), Int(6)}
+
+	for i := 0; i < len(testData); i++ {
+		sl.Insert(testData[i])
+	}
+
+	for i := 12; i < 100; i++ {
+		sl.Insert(Int(i))
+	}
+
+	expect := map[Int]int{Int(1): 1, Int(2): 2, Int(3): 5, Int(4): 7,
+		Int(5): 8, Int(6): 9, Int(7): 11, Int(8): 12}
+
+	for k, v := range expect {
+		if sl.GetRank(k) != v {
+			t.Fatal()
+		}
+	}
+
+	if sl.GetRank(Int(99)) != 100 || sl.GetRank(Int(92)) != 93 || sl.GetRank(Int(0)) != 0 ||
+		sl.GetRank(Int(12)) != 13 || sl.GetRank(Int(13)) != 14 || sl.GetRank(Int(10)) != 0 {
+		t.Fatal()
+	}
+
+	// 1 1 1 1 2 2 2 2 3 3 3 3
+	sl = sl.Init()
+	for i := 1; i <= 3; i++ {
+		for j := 0; j < 4; j++ {
+			sl.Insert(Int(i))
+		}
+	}
+	fmt.Println(sl.GetRank(Int(1)))
+	fmt.Println(sl.GetRank(Int(2)))
+	fmt.Println(sl.GetRank(Int(3)))
+
+	fmt.Println("=============")
+	for e := sl.GetElementByRank(13); e != nil; e = e.Next() {
+		fmt.Println(e.Value)
+	}
+	// fmt.Println(sl.GetElementByRank(1).Value)
+	// fmt.Println(sl.GetElementByRank(2).Value)
+	// fmt.Println(sl.GetElementByRank(6).Value)
+	// fmt.Println(sl.GetElementByRank(11).Value)
+
 }
 
 func BenchmarkIntInsertOrder(b *testing.B) {

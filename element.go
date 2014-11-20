@@ -4,7 +4,7 @@ import (
 	"math/rand"
 )
 
-const SKIPLIST_MAXLEVEL = 32
+const SKIPLIST_MAXLEVEL = 5
 const SKIPLIST_BRANCH = 4
 
 type skiplistLevel struct {
