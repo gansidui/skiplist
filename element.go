@@ -9,6 +9,7 @@ const SKIPLIST_BRANCH = 4
 
 type skiplistLevel struct {
 	forward *Element
+	span    int
 }
 
 type Element struct {

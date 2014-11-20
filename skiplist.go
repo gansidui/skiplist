@@ -8,6 +8,7 @@ type SkipList struct {
 	header *Element
 	tail   *Element
 	update []*Element
+	rank   []int
 	length int
 	level  int
 }
@@ -18,6 +19,7 @@ func New() *SkipList {
 		header: newElement(SKIPLIST_MAXLEVEL, nil),
 		tail:   nil,
 		update: make([]*Element, SKIPLIST_MAXLEVEL),
+		rank:   make([]int, SKIPLIST_MAXLEVEL),
 		length: 0,
 		level:  1,
 	}
@@ -28,6 +30,7 @@ func (sl *SkipList) Init() *SkipList {
 	sl.header = newElement(SKIPLIST_MAXLEVEL, nil)
 	sl.tail = nil
 	sl.update = make([]*Element, SKIPLIST_MAXLEVEL)
+	sl.rank = make([]int, SKIPLIST_MAXLEVEL)
 	sl.length = 0
 	sl.level = 1
 	return sl
@@ -50,46 +53,69 @@ func (sl *SkipList) Len() int {
 
 // Insert inserts v, increments sl.length, and returns a new element of wrap v.
 func (sl *SkipList) Insert(v Interface) *Element {
-	node := sl.header
+	x := sl.header
 	for i := sl.level - 1; i >= 0; i-- {
-		for node.level[i].forward != nil && node.level[i].forward.Value.Less(v) {
-			node = node.level[i].forward
+		// store rank that is crossed to reach the insert position
+		if i == sl.level-1 {
+			sl.rank[i] = 0
+		} else {
+			sl.rank[i] = sl.rank[i+1]
 		}
-		sl.update[i] = node
+		for x.level[i].forward != nil && x.level[i].forward.Value.Less(v) {
+			x = x.level[i].forward
+			sl.rank[i] += x.level[i].span
+		}
+		sl.update[i] = x
 	}
 
 	level := randomLevel()
 	if level > sl.level {
 		for i := sl.level; i < level; i++ {
+			sl.rank[i] = 0
 			sl.update[i] = sl.header
+			sl.update[i].level[i].span = sl.length
 		}
 		sl.level = level
 	}
 
-	node = newElement(level, v)
+	x = newElement(level, v)
 	for i := 0; i < level; i++ {
-		node.level[i].forward = sl.update[i].level[i].forward
-		sl.update[i].level[i].forward = node
+		x.level[i].forward = sl.update[i].level[i].forward
+		sl.update[i].level[i].forward = x
+
+		// update span covered by update[i] as x is inserted here
+		x.level[i].span = sl.update[i].level[i].span - (sl.rank[0] + sl.rank[i])
+		sl.update[i].level[i].span = sl.rank[0] - sl.rank[i] + 1
 	}
 
-	if sl.update[0] != sl.header {
-		node.backward = sl.update[0]
+	// increment span for untouched levels
+	for i := level; i < sl.level; i++ {
+		sl.update[i].level[i].span++
 	}
-	if node.level[0].forward != nil {
-		node.level[0].forward.backward = node
+
+	if sl.update[0] == sl.header {
+		x.backward = nil
 	} else {
-		sl.tail = node
+		x.backward = sl.update[0]
+	}
+	if x.level[0].forward != nil {
+		x.level[0].forward.backward = x
+	} else {
+		sl.tail = x
 	}
 	sl.length++
 
-	return node
+	return x
 }
 
 // deleteElement deletes e from its skiplist, and decrements sl.length.
 func (sl *SkipList) deleteElement(e *Element, update []*Element) {
 	for i := 0; i < sl.level; i++ {
 		if update[i].level[i].forward == e {
+			update[i].level[i].span += e.level[i].span - 1
 			update[i].level[i].forward = e.level[i].forward
+		} else {
+			update[i].level[i].span -= 1
 		}
 	}
 
@@ -108,59 +134,45 @@ func (sl *SkipList) deleteElement(e *Element, update []*Element) {
 // Remove removes e from sl if e is an element of skiplist sl.
 // It returns the element value e.Value.
 func (sl *SkipList) Remove(e *Element) interface{} {
-	if e == nil {
-		return nil
-	}
-
-	node := sl.header
-	for i := sl.level - 1; i >= 0; i-- {
-		for node.level[i].forward != nil && node.level[i].forward.Value.Less(e.Value) {
-			node = node.level[i].forward
-		}
-		sl.update[i] = node
-	}
-
-	node = node.level[0].forward
-	if node == e {
-		sl.deleteElement(node, sl.update)
-		return node.Value
+	x := sl.find(e.Value)
+	if x == e {
+		sl.deleteElement(x, sl.update)
+		return x.Value
 	}
 
 	return nil
 }
 
-// Delete deletes e if e.Value == v, and return e.Value.
+// Delete deletes the first element e that e.Value == v, and return e.Value or nil.
 func (sl *SkipList) Delete(v Interface) interface{} {
-	node := sl.header
-	for i := sl.level - 1; i >= 0; i-- {
-		for node.level[i].forward != nil && node.level[i].forward.Value.Less(v) {
-			node = node.level[i].forward
-		}
-		sl.update[i] = node
-	}
-
-	node = node.level[0].forward
-	if node != nil && !node.Value.Less(v) && !v.Less(node.Value) {
-		sl.deleteElement(node, sl.update)
-		return node.Value
+	x := sl.find(v)
+	if x != nil && !x.Value.Less(v) && !v.Less(x.Value) {
+		sl.deleteElement(x, sl.update)
+		return x.Value
 	}
 
 	return nil
 }
 
-// Find finds e if e.Value == v, and return e.
+// Find finds the first element e that e.Value == v, and return e or nil.
 func (sl *SkipList) Find(v Interface) *Element {
-	node := sl.header
-	for i := sl.level - 1; i >= 0; i-- {
-		for node.level[i].forward != nil && node.level[i].forward.Value.Less(v) {
-			node = node.level[i].forward
-		}
-	}
-
-	node = node.level[0].forward
-	if node != nil && !node.Value.Less(v) && !v.Less(node.Value) {
-		return node
+	x := sl.find(v)
+	if x != nil && !x.Value.Less(v) && !v.Less(x.Value) {
+		return x
 	}
 
 	return nil
+}
+
+// find finds the first element e that e.Value >= v, and return e or nil.
+func (sl *SkipList) find(v Interface) *Element {
+	x := sl.header
+	for i := sl.level - 1; i >= 0; i-- {
+		for x.level[i].forward != nil && x.level[i].forward.Value.Less(v) {
+			x = x.level[i].forward
+		}
+		sl.update[i] = x
+	}
+
+	return x.level[0].forward
 }

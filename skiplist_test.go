@@ -215,14 +215,14 @@ func BenchmarkIntFindRandom(b *testing.B) {
 }
 
 func output(sl *SkipList) {
-	var node *Element
+	var x *Element
 	for i := 0; i < SKIPLIST_MAXLEVEL; i++ {
 		fmt.Printf("LEVEL[%v]: ", i)
-		node = sl.header.level[i].forward
-		for node != nil {
-			fmt.Printf("%v -> ", node.Value)
-			node = node.level[i].forward
+		x = sl.header.level[i].forward
+		for x != nil {
+			fmt.Printf("%v -> ", x.Value)
+			x = x.level[i].forward
 		}
-		fmt.Println("NULL")
+		fmt.Println("NIL")
 	}
 }
