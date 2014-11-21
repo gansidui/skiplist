@@ -3,6 +3,7 @@ package skiplist
 import (
 	"fmt"
 	"math/rand"
+	"sort"
 	"testing"
 )
 
@@ -145,52 +146,59 @@ func TestInt(t *testing.T) {
 
 func TestRank(t *testing.T) {
 	sl := New()
-	// 1 2 2 2 3 3 4 5 6 6 7 8
-	testData := []Int{Int(5), Int(2), Int(3), Int(1), Int(4), Int(2), Int(3),
-		Int(6), Int(2), Int(7), Int(8), Int(6)}
 
-	for i := 0; i < len(testData); i++ {
-		sl.Insert(testData[i])
-	}
-
-	for i := 12; i < 100; i++ {
+	for i := 1; i <= 10; i++ {
 		sl.Insert(Int(i))
 	}
 
-	expect := map[Int]int{Int(1): 1, Int(2): 2, Int(3): 5, Int(4): 7,
-		Int(5): 8, Int(6): 9, Int(7): 11, Int(8): 12}
-
-	for k, v := range expect {
-		if sl.GetRank(k) != v {
+	for i := 1; i <= 10; i++ {
+		if sl.GetRank(Int(i)) != i {
 			t.Fatal()
 		}
 	}
 
-	if sl.GetRank(Int(99)) != 100 || sl.GetRank(Int(92)) != 93 || sl.GetRank(Int(0)) != 0 ||
-		sl.GetRank(Int(12)) != 13 || sl.GetRank(Int(13)) != 14 || sl.GetRank(Int(10)) != 0 {
+	for i := 1; i <= 10; i++ {
+		if sl.GetElementByRank(i).Value != Int(i) {
+			t.Fatal()
+		}
+	}
+
+	if sl.GetRank(Int(0)) != 0 || sl.GetRank(Int(11)) != 0 {
 		t.Fatal()
 	}
 
-	// 1 1 1 1 2 2 2 2 3 3 3 3
-	sl = sl.Init()
-	for i := 1; i <= 3; i++ {
-		for j := 0; j < 4; j++ {
-			sl.Insert(Int(i))
+	if sl.GetElementByRank(11) != nil || sl.GetElementByRank(12) != nil {
+		t.Fatal()
+	}
+
+	expect := []Int{Int(7), Int(8), Int(9), Int(10)}
+	for e, i := sl.GetElementByRank(7), 0; e != nil; e, i = e.Next(), i+1 {
+		if e.Value != expect[i] {
+			t.Fatal()
 		}
 	}
-	fmt.Println(sl.GetRank(Int(1)))
-	fmt.Println(sl.GetRank(Int(2)))
-	fmt.Println(sl.GetRank(Int(3)))
 
-	fmt.Println("=============")
-	for e := sl.GetElementByRank(13); e != nil; e = e.Next() {
-		fmt.Println(e.Value)
+	sl = sl.Init()
+	mark := make(map[int]bool)
+	ss := make([]int, 0)
+
+	for i := 1; i <= 100000; i++ {
+		x := rand.Int()
+		if !mark[x] {
+			mark[x] = true
+			sl.Insert(Int(x))
+			ss = append(ss, x)
+		}
 	}
-	// fmt.Println(sl.GetElementByRank(1).Value)
-	// fmt.Println(sl.GetElementByRank(2).Value)
-	// fmt.Println(sl.GetElementByRank(6).Value)
-	// fmt.Println(sl.GetElementByRank(11).Value)
+	sort.Ints(ss)
 
+	for i := 0; i < len(ss); i++ {
+		if sl.GetElementByRank(i+1).Value != Int(ss[i]) || sl.GetRank(Int(ss[i])) != i+1 {
+			t.Fatal()
+		}
+	}
+
+	// output(sl)
 }
 
 func BenchmarkIntInsertOrder(b *testing.B) {
@@ -265,15 +273,44 @@ func BenchmarkIntFindRandom(b *testing.B) {
 	}
 }
 
+func BenchmarkIntRankOrder(b *testing.B) {
+	b.StopTimer()
+	sl := New()
+	for i := 0; i < 1000000; i++ {
+		sl.Insert(Int(i))
+	}
+	b.StartTimer()
+
+	for i := 0; i < b.N; i++ {
+		sl.GetRank(Int(i))
+	}
+}
+
+func BenchmarkIntRankRandom(b *testing.B) {
+	b.StopTimer()
+	sl := New()
+	for i := 0; i < 1000000; i++ {
+		sl.Insert(Int(rand.Int()))
+	}
+	b.StartTimer()
+
+	for i := 0; i < b.N; i++ {
+		sl.GetRank(Int(rand.Int()))
+	}
+}
+
 func output(sl *SkipList) {
 	var x *Element
 	for i := 0; i < SKIPLIST_MAXLEVEL; i++ {
 		fmt.Printf("LEVEL[%v]: ", i)
+		count := 0
 		x = sl.header.level[i].forward
 		for x != nil {
-			fmt.Printf("%v -> ", x.Value)
+			// fmt.Printf("%v -> ", x.Value)
+			count++
 			x = x.level[i].forward
 		}
-		fmt.Println("NIL")
+		// fmt.Println("NIL")
+		fmt.Println("count==", count)
 	}
 }

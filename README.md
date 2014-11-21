@@ -14,88 +14,68 @@ package main
 import (
 	"fmt"
 	"github.com/gansidui/skiplist"
+	"log"
 )
 
-type Node struct {
+type User struct {
 	score float64
-	id    int
+	id    string
 }
 
-func (this *Node) Less(other interface{}) bool {
-	return this.score < other.(*Node).score
-}
-
-func NewNode(score float64, id int) *Node {
-	return &Node{
-		score: score,
-		id:    id,
+func (u *User) Less(other interface{}) bool {
+	if u.score > other.(*User).score {
+		return true
 	}
+	if u.score == other.(*User).score && len(u.id) > len(other.(*User).id) {
+		return true
+	}
+	return false
 }
 
 func main() {
-	data := make([]*Node, 8)
-	data[0] = NewNode(5.5, 1)
-	data[1] = NewNode(2.2, 2)
-	data[2] = NewNode(2.2, 3)
-	data[3] = NewNode(2.2, 4)
-	data[4] = NewNode(1.1, 5)
-	data[5] = NewNode(4.4, 6)
-	data[6] = NewNode(3.3, 7)
-	data[7] = NewNode(6.6, 8)
+	us := make([]*User, 7)
+	us[0] = &User{6.6, "hi"}
+	us[1] = &User{4.4, "hello"}
+	us[2] = &User{2.2, "world"}
+	us[3] = &User{3.3, "go"}
+	us[4] = &User{1.1, "skip"}
+	us[5] = &User{2.2, "list"}
+	us[6] = &User{3.3, "lang"}
 
+	// insert
 	sl := skiplist.New()
-	for i := 0; i < len(data); i++ {
-		sl.Insert(data[i])
+	for i := 0; i < len(us); i++ {
+		sl.Insert(us[i])
 	}
 
-	node := NewNode(2.2, 999)
-
-	// According to the score to find
-	for e := sl.Find(node); e != nil; e = e.Next() {
-		fmt.Println(e.Value.(*Node).id, "-->", e.Value.(*Node).score)
-	}
-	fmt.Println()
-
+	// traverse
 	for e := sl.Front(); e != nil; e = e.Next() {
-		fmt.Println(e.Value.(*Node).id, "-->", e.Value.(*Node).score)
+		fmt.Println(e.Value.(*User).id, "-->", e.Value.(*User).score)
 	}
 	fmt.Println()
 
-	for e := sl.Back(); e != nil; e = e.Prev() {
-		fmt.Println(e.Value.(*Node).id, "-->", e.Value.(*Node).score)
+	// rank
+	rank1 := sl.GetRank(&User{2.2, "list"})
+	rank2 := sl.GetRank(&User{6.6, "hi"})
+	if rank1 != 6 || rank2 != 1 {
+		log.Fatal()
+	}
+	if e := sl.GetElementByRank(2); e.Value.(*User).score != 4.4 || e.Value.(*User).id != "hello" {
+		log.Fatal()
 	}
 }
 
 /* output:
 
-4 --> 2.2
-3 --> 2.2
-2 --> 2.2
-7 --> 3.3
-6 --> 4.4
-1 --> 5.5
-8 --> 6.6
-
-5 --> 1.1
-4 --> 2.2
-3 --> 2.2
-2 --> 2.2
-7 --> 3.3
-6 --> 4.4
-1 --> 5.5
-8 --> 6.6
-
-8 --> 6.6
-1 --> 5.5
-6 --> 4.4
-7 --> 3.3
-2 --> 2.2
-3 --> 2.2
-4 --> 2.2
-5 --> 1.1
+hi --> 6.6
+hello --> 4.4
+lang --> 3.3
+go --> 3.3
+world --> 2.2
+list --> 2.2
+skip --> 1.1
 
 */
-
 
 ~~~
 
